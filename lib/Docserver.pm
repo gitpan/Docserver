@@ -17,7 +17,7 @@ eval <<'EOF';
 EOF
 }
 
-$Docserver::VERSION = '1.1';
+$Docserver::VERSION = '1.12';
 
 # Placeholder for global error string
 use vars qw( $errstr );

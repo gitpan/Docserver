@@ -1,4 +1,6 @@
 
+1.12 Wed Aug  7 18:51:30 MET DST 2002
+	Added prerequsite for RPC::PlClient.
 
 1.1 Wed Aug  7 16:53:23 MET DST 2002
 	Installation changed to keep the configuration of the previous

@@ -107,12 +107,13 @@ EOF
 }
 
 WriteMakefile(
-	'NAME' =>		'Docserver',
-	'VERSION_FROM' =>	'lib/Docserver.pm',
-	'EXE_FILES' =>		[ 'bin/docclient.pl', 'bin/docserver.pl' ],
-	'dist' =>		{ COMPRESS => 'gzip -9f', SUFFIX => 'gz',
+	'NAME' =>	'Docserver',
+	'VERSION_FROM' => 'lib/Docserver.pm',
+	'EXE_FILES' =>	[ 'bin/docclient.pl', 'bin/docserver.pl' ],
+	'dist' =>	{ COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
 	clean           => { FILES => 'lib/Docclient/Config.pm t/testremote.txt testcfg t/testdoc.ps t/testdoc.html t/testdoc.txt1 t/testdoc.txt', },
+	PREREQ_PM =>	{ 'RPC::PlClient' => 0 },
 	);
 
 if ($^O eq 'MSWin32' and ($remote_server ne '' or $run_server eq 'y')) {
