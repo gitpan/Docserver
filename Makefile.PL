@@ -54,7 +54,9 @@ if ($run_server eq 'n') {
 	and client mask in lib/Docserver/Config.pm appropriately. Then
 	run docserver on the remote machine. After that come back and
 	continue with testing this client. Also check that versions
-	of Storable on both machines match.
+	of Storable on both machines match. Also, edit the setup in
+	lib/Docclient/Config.pm -- your old configuration will be lost
+	unless you put it in by hand.
 
 EOF
 		sleep 2;
@@ -72,7 +74,8 @@ if ($run_server eq 'y') {
 	Please read the README file. It's not likely that the software will
 	run of box for you. At least you should modify the configuration
 	of the server and client in files lib/Docclient/Config.pm and
-	lib/Docserver/Config.pm.
+	lib/Docserver/Config.pm. Your old configuration will be lost
+	unless you put it into these files by hand.
 
 EOF
 	sleep 2;

@@ -123,7 +123,7 @@ if (-f 't/testdoc.ps' and -s 't/testdoc.ps') {
 		close GOT;
 	}
 
-	if ($got =~ /^%!PS-Adobe.*?Krtku krtku.*%%EOF/s) {
+	if ($got =~ m#^%!PS-Adobe.*?(Krtku krtku|dup 1 /K put\sdup 2 /r put\sdup 3 /t put\sdup 4 /e put\sdup 5 /k put).*%%EOF#s) {
 		print "And the result is fine.\nok 9\n";
 	} else {
 		print "But the content doesn't seem to be PS with our document.\nnot ok 9\n";

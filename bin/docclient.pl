@@ -25,7 +25,7 @@ Getopt::Long::GetOptions( \%options,
 			) or exit;
 
 if (not defined $options{'in_format'} and not defined $options{'out_format'}) {
-	@options{'in_format', 'out_format'} = ($0 =~ /^(.+)2(.+)$/);
+	@options{'in_format', 'out_format'} = ($0 =~ m!([^/\\]+)2([^/\\]+)$!);
 }
 $options{'in_format'} = 'doc' unless defined $options{'in_format'};
 $options{'out_format'} = 'txt' unless defined $options{'out_format'};
@@ -53,8 +53,10 @@ usage: docclient [ options ] [ files ]
 	--server_version	server version info
 	--help			this help
     Available in/out format names depend on your server configuration
-    but generaly are doc -> txt, txt1, html, doc95, ps and ps1 for Word
-    conversions and xls, cvs -> cvs, txt, xls, html for Excel.
+    but the input generaly is doc, txt, rtf or html for text
+    documents, xls for Excel documents and csv for semicolon separated
+    values; the output possibilities are txt, txt1, html, doc95, ps
+    and ps1 for Word conversions and cvs, txt, xls, html for Excel.
 EOF
 	exit;
 }
@@ -104,6 +106,7 @@ for my $file (@ARGV) {
 
 	if (defined $obj->{'raw'}
 		or not $obj->{'out_format'} =~ /^txt1?$|^html$|^csv$/) {
+		binmode STDOUT;
 		$obj->get_to_file(*STDOUT);
 	} else {
 		if ($obj->{'out_format'} =~ /^txt1?$/) {
@@ -186,7 +189,7 @@ docclient - client for remote conversions of MS format documents
 
 =head1 AUTHOR
 
-(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic.
 

@@ -3,7 +3,7 @@
 $^W = 1;
 use strict;
 use RPC::PlServer;
-use lib '.';
+### use lib '.';
 use Docserver;
 use Docserver::Config;
 
@@ -12,8 +12,11 @@ use vars qw( @ISA $VERSION );
 @ISA = qw( RPC::PlServer );
 $VERSION = $Docserver::VERSION;
 
+my $oldfh = select STDOUT; $| = 1; select $oldfh;
+$oldfh = select STDERR; $| = 1; select $oldfh;
+
 my $server = new Docserver::Srv( {
-		'debug' => 20,
+		'debug' => 1,
 		'facility' => 'stderr',
 		'logfile' => $Docserver::Config::Config{'logfile'},
 		'mode' => 'single',
@@ -59,7 +62,7 @@ docserver.pl.
 
 =head1 AUTHOR
 
-(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic.
 

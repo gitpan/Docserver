@@ -11,24 +11,17 @@ software. The docclient/docserver setup provides the transfer of the
 file from client machine to the Windows host and runs the conversion
 using Word, Excel or Office on that Windows machine.
 
-On the Windows machine, the docserver has to run. It accepts network
-connections, reads the input file, uses OLE calls to convert that file
-and sends the output back to client. On the client (most probably Un*x
-box) you run a docclient that gets the input file, sends it to
-docserver and gets back converted file. You can also use the
-Docclient.pm module directly to do the conversion inside of your
+On the Windows machine, the docserver script has to run. It accepts
+network connections, reads the input file, uses OLE calls to convert
+that file and sends the output back to client. On the client (most
+probably Un*x box) you run a docclient that gets the input file,
+sends it to docserver and gets back converted file. You can also use
+the Docclient.pm module directly to do the conversion inside of your
 larger Perl project.
 
 Installation:
 	Please read the INSTALL file for information about getting
 	Docserver set and running.
-
-*** This is BETA software! ***
-	Don't expect it to do anything usefull for you, not even run.
-
-	On the other hand, it does pretty good job for us at Masaryk
-	University, so with a little help from your friends you
-	should be able to get this running and get usefull.
 
 What it does when it works:
 	We are able to convert any doc document that is not "too
@@ -52,7 +45,7 @@ Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+Copyright: (c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz,
 	http://www.fi.muni.cz/~adelton/
 	Pieces of code by Michal Brandejs (client side post processing)
 	and Pavel Smerk (server side hacking). All rights reserved.

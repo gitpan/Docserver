@@ -3,6 +3,7 @@ INSTALL
 MANIFEST
 Makefile.PL
 README
+TODO
 bin/docclient.pl
 bin/docserver.pl
 do_test.pl

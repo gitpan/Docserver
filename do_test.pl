@@ -6,7 +6,7 @@ my @files;
 opendir DIR, 't';
 while (defined(my $file = readdir DIR)) {
 	next unless $file =~ /\.t$/;
-	push @files, "t\\$file";
+	push @files, "t/$file";
 }
 closedir DIR;
 

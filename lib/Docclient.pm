@@ -8,7 +8,7 @@ use Docclient::Config;
 use strict;
 use vars qw( $errstr $DEBUG );
 
-$Docclient::VERSION = 0.98;
+$Docclient::VERSION = '1.0';
 
 $DEBUG = 0;
 sub debug ($) {
@@ -307,11 +307,11 @@ server.
 =head1 VERSION
 
 This documentation is believed to describe reasonably accurately
-version 0.98 of Docclient.
+version 1.0 of Docclient.
 
 =head1 AUTHOR
 
-(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

@@ -1,7 +1,26 @@
 
+
+1.0 Mon Jan 28 19:55:48 MET 2002
+	Regexp in docclient.pl for xls2txt symlinks done right, patch
+	by Pavel Smerk.
+
+0.999 Fri Jan 25 15:40:02 MET 2002
+	The in in loops were missing, patch by Pavel Smerk.
+
+0.988 Mon Jan 21 18:54:33 MET 2002
+	Another merge with Pavel Smerk: fixup of Debug messages,
+	writing out, clearing pagenumbers.
+
+0.992 Mon Jan 14 15:02:13 MET 2002
+	Polished installation instruction. Added more tweaks from
+	Pavel Smerk.
+
+0.982 Thu Nov  1 13:43:25 MET 2001
+	More generic format2format name resolution.
+
 0.981 Sat Sep  1 14:59:52 MET DST 2001
 	Documentation polished. Installation description by Pavel
-	Smerk translated to English and inscluded in INSTALL.
+	Smerk translated to English and included in INSTALL.
 
 0.98 Fri Aug 31 20:06:47 MET DST 2001
 	Added test suite for remote side. More options move to

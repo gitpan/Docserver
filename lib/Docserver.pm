@@ -10,14 +10,14 @@ BEGIN {
 eval <<'EOF';
 	use Win32;
 	use Win32::API;
-	use Win32::OLE;
+	use Win32::OLE qw(in);
 	use Win32::OLE::Const 'Microsoft Office';
 	use Win32::OLE::Const 'Microsoft Word';
 	use Win32::OLE::Const 'Microsoft Excel';
 EOF
 }
 
-$Docserver::VERSION = 0.981;
+$Docserver::VERSION = '1.0';
 
 # Placeholder for global error string
 use vars qw( $errstr );
@@ -36,35 +36,36 @@ my %docoutform = (
 		'ps1' =>	$Docserver::Config::Config{'ps1'},
 		); 
 my %xlsoutform = (
-		'prn' =>	xlTextPrinter,
 		'txt' =>	xlTextPrinter,
 		'csv' =>	xlCSV,
 		'xls' =>	xlNormal,
 		'xls5' =>	xlExcel5,
 		'xls95' =>	xlExcel5,
 		'html' =>	xlHtml,
-		'ps' =>		'Adobe Generic PS on FILE:',
-		'ps1' =>	'Adobe Generic PS1 on FILE:',
+		'ps' =>		defined $Docserver::Config::Config{'excel.ps'}
+				? $Docserver::Config::Config{'excel.ps'}
+				: $Docserver::Config::Config{'ps'},
+		'ps1' =>	defined $Docserver::Config::Config{'excel.ps1'}
+				? $Docserver::Config::Config{'excel.ps1'}
+				: $Docserver::Config::Config{'ps1'},
 		);
 
 my $SHEET_SEP = "\n##### List è. %s #####\n\n";
 my $CSV_SHEET_SEP = "##### Sheet %s #####\n";
 
+# Pro logovani pouzijeme metody Docserver::Srv (zdedene od Net::Daemon pres
+# RPC::PlServer). Abychom ale mohli pristoupit k objektu Docserver::Srv, 
+# musel byt upraven RPC/PlServer.pm, kde v metody NewHandle bylo
+#     my $object = $self->CallMethod($handle, $method, @args);
+# zmeneno na
+#     my $object = $self->CallMethod($handle, $method, @args, $self);
+# - pak se v konstruktoru new tento argument stane hodnotou 'parent_server'
 sub Debug {
 	my $self = shift;
-	$self->{'server'}->Debug(@_);
-	}
-
-
-# http://msdn.microsoft.com/library/psdk/psdkref/errlist_9usz.htm
-# contains (rather long) table of system errors. You can also get
-# there from http://msdn.microsoft.com/library/, should MS change the
-# URL.
-sub WinError ($$) {
-	my ($self, $func) = @_;
-	if ($^E) {
-		$self->Debug("Win32 API function $func returned error: $^E");
-		$^E = 0;
+	if (defined $self->{'parent_server'}) {
+		$self->{'parent_server'}->Debug(@_);
+	} else {
+		warn scalar localtime, " ddebug, ", (sprintf shift, @_), "\n";
 	}
 }
 
@@ -76,12 +77,13 @@ sub new {
 	eval {
 		$self = bless {
 			'verbose' => 5,
+			'parent_server' => shift,
 			}, $class;
 
 		my ($dir, $filename)
 			= ($Docserver::Config::Config{'tmp_dir'}, 'file.in');
 		if (not -d $dir) {
-			print STDERR "Directory `$dir' doesn't exist, will try to create it\n";
+			$self->Debug("Directory `$dir' doesn't exist, will try to create it");
 			mkdir $dir, 0666
 				or die "Error creating dir `$dir': $!\n";
 			die "Directory `$dir' was not created properly\n" if not -d $dir;
@@ -91,7 +93,8 @@ sub new {
 		$self->{'dir'} = $dir;
 
 		$self->{'infile'} = $dir.'\\'.$filename;
-		print STDERR "Temporary file is `$self->{'infile'}'\n";
+		$self->Debug("Temporary file is `$self->{'infile'}'");
+		($self->{'outfile'} = $self->{'infile'}) =~ s/in$/out/;
 
 		$self->{'fh'} = new IO::File ">$self->{'infile'}"
 			or die "Couldn't create file `$self->{'infile'}': $@\n";
@@ -117,7 +120,7 @@ sub preferred_chunk_size {
 	my ($self, $size) = @_;
 	$size = $Docserver::Config::Config{'ChunkSize'}
 		if not defined $size or $size > $Docserver::Config::Config{'ChunkSize'};
-	print STDERR "Choosing chunk size `$size'\n" if $self->{'verbose'};
+	$self->Debug("Choosing chunk size `$size'") if $self->{'verbose'};
 	$self->{'ChunkSize'} = $size;
 	return $size;
 }
@@ -127,7 +130,7 @@ sub input_file_length {
 	my ($self, $size) = @_;
 	if (defined $size) {
 		$self->{'input_file_length'} = shift;
-		print STDERR "Setting input file size to `$size'\n" if $self->{'verbose'};
+		$self->Debug("Setting input file size to `$size'") if $self->{'verbose'};
 	}
 	$size;
 }
@@ -143,7 +146,7 @@ sub put {
 sub convert {
 	my ($self, $in_format, $out_format) = @_;
 	delete $self->{'errstr'};
-	print STDERR "Called convert (`$in_format', `$out_format')\n"
+	$self->Debug("Called convert (`$in_format', `$out_format')")
 		if $self->{'verbose'};
 
 	eval {
@@ -152,7 +155,7 @@ sub convert {
 			$self->{'fh'}->close();
 			delete $self->{'fh'};
 		}
-		if ($in_format eq 'doc' or $in_format eq 'rtf') {
+		if ($in_format =~ /doc|rtf|html|txt/) {
 			# Run Word conversion.
 			if (not defined $docoutform{$out_format}) {
 				die "Unsupported output format `$out_format' for Word conversion\n";
@@ -172,7 +175,7 @@ sub convert {
 	};
 	if ($@) {
 		$self->{'errstr'} = $@;
-		print STDERR "Conversion failed: $@\n";
+		$self->Debug("Conversion failed: $@");
 	}
 	return 1 if not defined $self->{'errstr'};
 	return;
@@ -182,24 +185,11 @@ sub convert {
 sub doc_convert {
 	my ($self, $in_format, $out_format) = @_;
 
-	# We'll shift the file to *.doc.
-	my $newname;
-	if ($in_format eq 'rtf') {
-		($newname = $self->{'infile'}) =~ s/\.[^\.]+$/.rtf/;
-	} else {
-		($newname = $self->{'infile'}) =~ s/\.[^\.]+$/.doc/;
-	}
-	rename $self->{'infile'}, $newname
-		or die "Error moving `$self->{'infile'}' to `$newname': $!\n";
-	$self->{'infile'} = $newname;
-
-	print STDERR "Processing file `$newname'\n";
-
 	# We will start new Word. It is better than doing
 	# GetActiveObject because if the interactive user already has
 	# some Word open, he won't see any documents flashing through
-	# his screen, and vice verse, he shouldn't be able to spoil
-	# our conversion. GetActiveObject would be necessary if we
+	# his screen, and vice versa, he shouldn't be able to spoil
+	# our conversion. Starting new Word would be necessary if we
 	# wanted the user to be able to kill potential dialog windows.
 
 	my $word = Win32::OLE->new('Word.Application', 'Quit')
@@ -212,54 +202,39 @@ sub doc_convert {
 
 	if (not $out_format =~ /^ps\d*$/
 		and not $docoutform{$out_format} =~ /^\d+$/) {
-		for my $i (1 .. $word->FileConverters->Count) {
-			$docoutform{$out_format}
-				= $word->FileConverters($i)->SaveFormat
-					if ($word->FileConverters($i)->ClassName
-						eq $docoutform{$out_format});
+		for my $conv (in $word->FileConverters) {
+			$docoutform{$out_format} = $conv->SaveFormat
+				if $conv->ClassName eq $docoutform{$out_format};
 		}
 		if (not $docoutform{$out_format} =~ /^\d+$/) {
 			die "Couldn't find converter for format `$docoutform{$out_format}'\n";
 		}
-		print STDERR "Found output converter number `$docoutform{$out_format}'\n";
+		$self->Debug("Found output converter number `$docoutform{$out_format}'");
 	}
 
-	# Open the Word document. We have to distinguish here. It
-	# would be nicer to call it the Open way (I'm not sure if
-	# after adding new document it is always active), however Open
-	# doesn't handle templates (unlike Excel), which cannot be
-	# saved as anything else than templates. ConfirmConversions and
-	# Format are here because interactive user could change these.
+	# Open method doesn't handle templates (unlike Excel), which cannot be
+	# saved as anything else than templates. So it is better to open
+	# document based on template -- it works even if we fill it other
+	# files than templates. The format is recognized automagically.
 
-	my $doc;
-	if ($in_format eq 'doc') {
-		$word->Documents->Add({
-			'Template' => $self->{'infile'},
-			}) or die Win32::OLE->LastError;
-		$doc = $word->ActiveDocument;
-	} else {
-		$doc = $word->Documents->Open({
-			'FileName' => $self->{'infile'},
-			'ConfirmConversions' => 0,
-			'Format' => wdOpenFormatAuto,
-			}) or die Win32::OLE->LastError;
-	}
+	my $doc = $word->Documents->Add({
+		'Template' => $self->{'infile'},
+		}) or die Win32::OLE->LastError;
 
 	if ($out_format =~ /^ps\d*$/) {
-		# Print to .prn file. We have to run it on background
+		# Print to file. We have to run it on background
 		# so that we don't get some dialog that would allow
 		# interactive user to cancel the print.
 
-		($self->{'outfile'} = $self->{'infile'}) =~ s/\.[^\.]+$/.prn/;
 		my $origback = $word->Options->{PrintBackground};
 		my $origprinter = $word->ActivePrinter;
 
 		$word->Options->{PrintBackground} = 1;
 		my $printer = $docoutform{$out_format};
-		print STDERR "Setting ActivePrinter to `$printer'\n";
+		$self->Debug("Setting ActivePrinter to `$printer'");
 		$word->{ActivePrinter} = $printer;
 		if ($word->{ActivePrinter} ne $printer) {
-			print STDERR "ActivePrinter set to `$word->{ActivePrinter}'\n";
+			$self->Debug("ActivePrinter set to `$word->{ActivePrinter}'");
 			die "Setting ActivePrinter to `$printer' failed -- printer not found\n";
 		}
 
@@ -286,24 +261,26 @@ sub doc_convert {
 		#
 		# Because it seems to ignore shapes wich text fields
 		# and probably of all types, we'll delete all shapes.
-		# Because the count decreases when we delete the
-		# shapes, we have to delete from the beginning and not
-		# to walk throught the list. We have to delete shapes
-		# from header and footer separately ($doc->Shapes
-		# won't return them), according to the manual we can
-		# take Shapes property from any HeaderFooter object
-		# and the returned collecion will contain all shapes
-		# from all headers and footers.
-		#
-		# Accessing $doc->Sections(1)->...->Count in for cycle
-		# (even if it doesn't get executed) caused in trivial
-		# test case with one line header and one line of
-		# normal text an extra Enter to be inserted between
-		# the header and the body. So we better not access
-		# this Count.
-		#
-		# The normal text convertor puts header under the
-		# normal text. Moreover, if the original document
+		# We have to delete shapes from header and footer
+		# separately ($doc->Shapes won't return them),
+		# according to the manual we can take Shapes property
+		# from any HeaderFooter object and the returned
+		# collection will contain all shapes from all headers
+		# and footers.
+
+		if ($out_format eq 'txt') {
+			for my $shape (in $doc->Shapes) {
+				$shape->Delete;
+			}
+			for my $shape (in $doc->Sections(1)->Headers(wdHeaderFooterPrimary)->Shapes) {
+				$shape->Delete;
+			}
+		}
+
+		# The normal text convertor (txt1) puts header under
+		# the normal text.
+
+		# If the original document
 		# containg page numbers in headers or footers, the
 		# Text with Layout puts to the beginning of the output
 		# (and the normal text converter to the end of the
@@ -314,39 +291,21 @@ sub doc_convert {
 		# way than walking through all combinations of header
 		# and footer and constants WdHeaderFooterIndex.
 
-		if ($out_format eq 'txt') {
-			for my $shape (1 .. $doc->Shapes->Count) {
-				$doc->Shapes(1)->Delete;
-			}
-			for my $shape (1 ..  $doc->Sections(1)->Headers(wdHeaderFooterPrimary)->Shapes->Count) {
-				$doc->Sections(1)->Headers(wdHeaderFooterPrimary)->Shapes(1)->Delete;
-			}
-		}
-
 		if ($out_format =~ /^txt1?$/) {
-			for my $section (1 .. $doc->Sections->Count) {
-				for my $pagenumger (1 .. $doc->Sections($section)->Footers(wdHeaderFooterPrimary)->PageNumbers->Count) {
-					$doc->Sections($section)->Footers(wdHeaderFooterPrimary)->PageNumbers(1)->Delete;
-				}
-				for my $pagenumger (1 .. $doc->Sections($section)->Headers(wdHeaderFooterPrimary)->PageNumbers->Count) {
-					$doc->Sections($section)->Headers(wdHeaderFooterPrimary)->PageNumbers(1)->Delete;
-				}
-				for my $pagenumger (1 .. $doc->Sections($section)->Footers(wdHeaderFooterEvenPages)->PageNumbers->Count) {
-					$doc->Sections($section)->Footers(wdHeaderFooterEvenPages)->PageNumbers(1)->Delete;
-				}
-				for my $pagenumger (1 .. $doc->Sections($section)->Headers(wdHeaderFooterEvenPages)->PageNumbers->Count) {
-					$doc->Sections($section)->Headers(wdHeaderFooterEvenPages)->PageNumbers(1)->Delete;
-				}
-				for my $pagenumger (1 .. $doc->Sections($section)->Footers(wdHeaderFooterFirstPage)->PageNumbers->Count) {
-					$doc->Sections($section)->Footers(wdHeaderFooterFirstPage)->PageNumbers(1)->Delete;
-				}
-				for my $pagenumger (1 .. $doc->Sections($section)->Headers(wdHeaderFooterFirstPage)->PageNumbers->Count) {
-					$doc->Sections($section)->Headers(wdHeaderFooterFirstPage)->PageNumbers(1)->Delete;
+			for my $section (in $doc->Sections) {
+				for my $pagenumber (
+					in $section->Footers(wdHeaderFooterPrimary)->PageNumbers,
+					in $section->Headers(wdHeaderFooterPrimary)->PageNumbers,
+					in $section->Footers(wdHeaderFooterEvenPages)->PageNumbers,
+					in $section->Headers(wdHeaderFooterEvenPages)->PageNumbers,
+					in $section->Footers(wdHeaderFooterFirstPage)->PageNumbers,
+					in $section->Headers(wdHeaderFooterFirstPage)->PageNumbers
+					) {
+					$pagenumber->Delete;
 				}
 			}
 		}
 
-		($self->{'outfile'} = $self->{'infile'}) =~ s/\.[^\.]+$/.out/;
 		$doc->SaveAs({
 			'FileName' => $self->{'outfile'},
 			'FileFormat' => $docoutform{$out_format}
@@ -360,9 +319,6 @@ sub doc_convert {
 sub xls_convert
 	{
 	my ($self, $in_format, $out_format) = @_;
-	my $newname;
-	($newname = $self->{'infile'}) =~ s/\.[^\.]+$/\.xls/;
-	rename $self->{'infile'}, $newname;
 
 	my $excel = Win32::OLE->new('Excel.Application', 'Quit')
 		or die Win32::OLE->LastError;
@@ -376,8 +332,7 @@ sub xls_convert
 	# to have reasonable name for output to PS or XLS.
 	$wrk->Sheets(1)->{'Name'} = 'Sheet1' if $in_format eq 'csv';
 
-	($self->{'outfile'} = $self->{'infile'}) =~ s/\.[^\.]+$/.out/;
-	if ($out_format =~ /^xls(95)?$/) {
+	if ($out_format =~ /^(xls(95)?|txt)$/) {
 		$wrk->SaveAs({
 			'FileName' => $self->{'outfile'},
 			'FileFormat' => $xlsoutform{$out_format}
@@ -387,63 +342,50 @@ sub xls_convert
 		# It seems like Excel cannot do background printing
 		# like Word can. Fortunately the dialog box is not
 		# active so it cannot be hit by accident.
-		#
-		# We have to setup ActivePrinter and then return it
-		# back because we could change the printer to
-		# interactive Excel (but it's no longer a problem
-		# because we start new Excel.Application each time.
-
-		my $origprinter = $excel->ActivePrinter;
 		$excel->{ActivePrinter} = $xlsoutform{$out_format};
 		$wrk->Activate;
-		$excel->PrintOut({
+		$wrk->PrintOut({
 			'PrintToFile' => 1, 
 			'PrToFileName' => $self->{'outfile'},
 			});
-		$excel->{ActivePrinter} = $origprinter;
 
 	} elsif ($out_format eq 'csv') {
-		my $savefile = $self->{'outfile'};
-		$savefile =~ s/\.out$/.xout/;
-
 		open FILEOUT, "> $self->{'outfile'}" or die "Error writing $self->{'outfile'}: $!";
 		binmode FILEOUT;
 		for my $i (1 .. $wrk->Sheets->Count) {
 			$wrk->Sheets($i)->SaveAs({
-				'FileName' => $savefile,
+				'FileName' => "$self->{'outfile'}$i",
 				'FileFormat' => $xlsoutform{$out_format},
 			});
 			printf FILEOUT $CSV_SHEET_SEP, $i if $i > 1;
-			open IN, $savefile;
+			open IN, "$self->{'outfile'}$i";
 			binmode IN;
 			while (<IN>) {
 				print FILEOUT;
 			}
 			close IN;
-			unlink $savefile;
 		}
 		close FILEOUT;
 	
 	} elsif ($out_format eq 'html') {
-		my $savefile;
-		for my $i (1 .. $wrk->Sheets->Count) {
-			$savefile = $self->{'outfile'};
-			$savefile =~ s/\.out$/$1.out/;
+		for my $sheet (in $wrk->Sheets) {
 			$wrk->PublishObjects->Add({
 				'SourceType' => xlSourceSheet,
-				'Filename' => $savefile,
-				'Sheet' => $wrk->Sheets($i)->Name,
+				'Filename' => $self->{'outfile'},
+				'Sheet' => $sheet->Name,
 				'HtmlType' => xlHtmlStatic,
 				})->Publish({
 					'Create' => 0,
 					});
-
-		}
+		}	
 	}
 
 	$wrk->Close({
 		'SaveChanges' => 0
 		});
+	opendir DIR, $self->{'dir'};
+	map unlink("$self->{'dir'}/$_") || warn("$_ $!\n"), grep /out\d+$/, readdir DIR;
+	closedir DIR;
 }
 
 
@@ -467,15 +409,11 @@ sub get {
 
 sub finished {
 	my $self = shift;
-
-	### FIXME: vymazat soubory. Cely adresar.
-return;
-	if (defined $self->{'fh'})
-		{ delete $self->{'fh'}; }
-	unlink $self->{'infile'} if defined delete $self->{'infile'};
-	if (defined $self->{'outfh'})
-		{ delete $self->{'outfh'}; }
-	unlink $self->{'outfile'} if defined delete $self->{'outfile'};
+	close delete $self->{'fh'} if defined $self->{'fh'};
+	close delete $self->{'outfh'} if defined $self->{'outfh'};
+	unlink delete $self->{'infile'} if defined $self->{'infile'};
+	unlink delete $self->{'outfile'} if defined $self->{'outfile'};
+	rmdir delete $self->{'dir'} if defined $self->{'dir'};
 }
 
 sub DESTROY {
@@ -494,7 +432,7 @@ Docserver.pm - server module for remote MS format conversions
 
 =head1 AUTHOR
 
-(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic.
 
