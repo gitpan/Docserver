@@ -19,6 +19,31 @@ if (open CONFIG, "testcfg") {
 		}
 	}
 	close CONFIG;
+} else {
+	eval 'use Docclient::Config';
+	if (defined %Docclient::Config::Config) {
+		$remote_server = "$Docclient::Config::Config{server}:$Docclient::Config::Config{port}";
+		print "Loading configuration of your previous install.\n";
+		open OUTCONFIG, '> lib/Docclient/Config.pm';
+		print OUTCONFIG <<'EOF';
+
+package Docclient::Config;
+%Docclient::Config::Config = (
+EOF
+		for (keys %Docclient::Config::Config) {
+			print OUTCONFIG "\t'$_' => '$Docclient::Config::Config{$_}',\n";
+		}
+		print OUTCONFIG ");\n\n";
+	}
+}
+
+if (not -f 'lib/Docclient/Config.pm') {
+	open IN, 'lib/Docclient/Config.pm.dist';
+	open OUT, '> lib/Docclient/Config.pm';
+	local $/ = undef;
+	print OUT <IN>;
+	close OUT;
+	close IN;
 }
 
 if ($^O eq 'MSWin32') {
@@ -87,6 +112,7 @@ WriteMakefile(
 	'EXE_FILES' =>		[ 'bin/docclient.pl', 'bin/docserver.pl' ],
 	'dist' =>		{ COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
+	clean           => { FILES => 'lib/Docclient/Config.pm t/testremote.txt testcfg t/testdoc.ps t/testdoc.html t/testdoc.txt1 t/testdoc.txt', },
 	);
 
 if ($^O eq 'MSWin32' and ($remote_server ne '' or $run_server eq 'y')) {

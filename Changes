@@ -1,5 +1,9 @@
 
 
+1.1 Wed Aug  7 16:53:23 MET DST 2002
+	Installation changed to keep the configuration of the previous
+	install, if possible.
+
 1.0 Mon Jan 28 19:55:48 MET 2002
 	Regexp in docclient.pl for xls2txt symlinks done right, patch
 	by Pavel Smerk.

@@ -8,7 +8,7 @@ bin/docclient.pl
 bin/docserver.pl
 do_test.pl
 lib/Docclient.pm
-lib/Docclient/Config.pm
+lib/Docclient/Config.pm.dist
 lib/Docserver.pm
 lib/Docserver/Config.pm
 t/0_client_pm.t
