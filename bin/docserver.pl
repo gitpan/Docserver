@@ -5,18 +5,20 @@ use strict;
 use RPC::PlServer;
 use lib '.';
 use Docserver;
+use Docserver::Config;
 
 package Docserver::Srv;
 use vars qw( @ISA $VERSION );
 @ISA = qw( RPC::PlServer );
 $VERSION = $Docserver::VERSION;
 
-my $server = new Docserver::Srv( { qw(
-		debug		20
-		facility	stderr
-		logfile		docserver.log
-		mode		single
-		localport	5454 ),
+my $server = new Docserver::Srv( {
+		'debug' => 20,
+		'facility' => 'stderr',
+		'logfile' => $Docserver::Config::Config{'logfile'},
+		'mode' => 'single',
+		'localport' => $Docserver::Config::Config{'port'},
+		'pidfile' => 'docserver.pid',
 		'methods' => {
 			'Docserver::Srv' => {
 				'NewHandle' => 1,
@@ -35,17 +37,34 @@ my $server = new Docserver::Srv( { qw(
 				'get' => 1,
 				'finished' => 1,
 				'errstr' => 1,
+				'server_version' => 1,
 				}
 			},
-		'clients' => [
-			{
-			'mask' => '\.fi\.muni\.cz$',
-			'accept' => 1,
-			},
-			],	
+		'clients' => $Docserver::Config::Config{'clients'},
 		} );
 $server->Bind();
 
 sub errstr {
 	return "Server error: $Docserver::errstr";
 	}
+
+=head1 NAME
+
+docserver - server for remote conversions of MS format documents
+
+=head1 SYNOPSIS
+
+Configure the server in lib/Docserver/Config.pm and start the
+docserver.pl.
+
+=head1 AUTHOR
+
+(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz,
+http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
+University in Brno, Czech Republic.
+
+All rights reserved. This package is free software; you can
+redistribute it and/or modify it under the same terms as Perl itself.
+
+=cut
+

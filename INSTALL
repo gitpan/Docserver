@@ -1,0 +1,198 @@
+
+			-------------------------
+			Installation of Docserver
+			-------------------------
+
+This is a INSTALL file for the docserver/docclient project.
+
+The steps to do and check for are:
+	1. Have Windows server with Perl and Word/Excel.
+	2. Install additional Perl modules.
+	3. Have client machine with Perl.
+	4. Check that the versions of Storable module are compatible.
+	5. Check that the */Config.pm files seem reasonable.
+	6. Run tests locally on the server.
+	7. Debug errors you might get from running the tests.
+	8. Run remote tests from the client.
+	9. Install and setup the docserver as service.
+
+Windows server:
+
+For the server, we use WinNT with 628 build of ActiveStave Perl.
+Different version of Perl or different version of OS may work for you
+but please note that I won't be of much help resolving OS problems on
+this side.
+
+Install Perl:
+
+After installing the ActiveState Perl, use ppm to further install
+RPC::PlServer, Win32::OLE and WIN32::API packages. Run ppm and on its
+prompt enter install RPC::PlServer <Enter> and similarily for those
+other two packages. You also need Storable module (from those that are
+rare) but that seems to be installed by ActiveState by default.
+Sometimes the repository at activestate is broken, in that case run
+ppm genconfig and edit the output to match the correct locations on
+activestate.com. If you used some other Perl distribution, check
+documentation that came with that distribution for information about
+installing these modules.
+
+Install Word and Excel:
+
+You need to have Word (and Excel for xls conversion) installed, the
+newer version the better. The 2000 versions seem to be working fine.
+Install converters Word/Text with Layout and Converters/Text/RTF and
+export to Word 6.0. If you consider to do some development or
+debugging of Docserver, install Help and Tools for Office/Help for
+Visual Basic. It may be necessary to set user's name and initials to
+space, because of an error in one convertor. You can also consider
+installing applicable patches from http://office.microsoft.com.
+
+In Word and Excel in Options/Macro/Security select High securify
+level for the user under which the Docserver will be running, and
+remove any trusted resources and setup no trust to any plugins, etc.
+You can do this in registry by setting
+HKU/.default/SW/MS/Office/9.0/Word/Security/Level to 3 (dword) and
+DontTrustInstalledFiles to 1 (dword). For Excel it is similar. I don't
+know how to add a trusted resource, so I do not know how to do that
+without running Word -- the safest would be tu run under system
+account something like
+	use Win32::OLE;
+	my $word = Win32::OLE->new('Word.Application'); $word->{'Visible'};
+and do it manually.
+
+Setup PostScript printers:
+
+For conversions to PostScript install printer with Adobe PS Printer
+Driverem (http://www.adobe.com/products/printerdrivers/main.html) as
+local on port FILE: and with driver Adobe Generic PS. You may want to
+setup memory for PS to 4096kB, ASCII output protokol, no ^D before nor
+after the job, and check that the output format matches your local
+customs (A4 for Europe, probably). In document defaults set TrueType
+Font to Download as Softfont, TrueType Font Download Option to Outline
+and PostScript Output Option to Optimize for Speed. It is recommended
+to install another printer (ps1 in Docserver) as Optimize for
+Portability (that gives you reasonable PostScript that you can work
+with in Un*x). Yet another printer (and another setting in
+Docserver/Config.pm) could be with Substitute with Device Fonts,
+Automatic and Optimize for Speed for smallest output PostScript,
+however if you're in non-English speaking country, your diacritical
+characters will be of worse quality. If you decide to use some other
+driver (for example HP), set Page Independence Yes and Generate Job
+Control Code No.
+
+Client machine:
+
+For the client, any machine is OK, you need the RPC::PlClient package
+here. The version of Storable module has to be the same on the client
+and on the server (or they have to be close/compatible -- 1.0.13 on
+client and 1.0.10 on Windows server seems to work). So you will probably
+want to install whatever is available for the ActiveState on Windows
+and then match the version on the client (Un*x) side.
+
+Installing the docserver/docclient Perl code:
+
+The installation goes the ordinary way
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+Installing Docserver.pm on Un*x machine doesn't hurt -- it just won't
+be used.
+
+Many people don't have working make on Windows, so alternatively you
+can do
+
+	perl Makefile.PL
+	perl do_test.pl
+
+and copy lib/ and bin/ directories to wherever you like them.
+
+Configuration is stored in lib/Docclient/Config.pm for client side and
+lib/Docserver/Config.pm for the server. You should match the machine
+names and the port numbers. On the server, check that the names for
+PostScript output (ps, ps1) match the names of PostScript printers
+(drivers) in your system.
+
+Running docserver as service:
+
+You can try http://www.firedaemon.com/ to setup docserver as a service
+but we have no experience with this program.
+
+You can also use AutoExNT from Resource Kit. You need files
+autoexnt.exe, autoexnt.bat, instexnt.exe and servmess.dll. Except
+instexnt.exe they have to be copied to %systemroot%\system32.
+Autoexnt.bat should contain line
+	start "docserver.pl" /DC:\directory\to\docserver.pl /MIN
+		C:\full\path\to\perl.exe docserver.pl
+The enter instexnt install /interactive and check Control Panels/
+Services/AutoExNT/Startup for Automatic. You can start docserver as
+service without reboot using
+	net start autoexnt
+
+You can also try to use srvany from Resource Kit.
+
+You should also be able to achieve the same result by directly
+editing registry.
+
+Docserver minimized in tray (assumes using AutoExNT):
+
+To have the window with docserver output minimized in tray, you can
+use shareware Trayer. You can create cmd/bat file with
+	start trayer /caption="docserver.pl" /dyntray=1
+or enter full path to trayer if it's not in %PATH%. If trayer is in
+profile All Users/Start Menu/Programs/Startup, it will be run
+automatically whenever any user logs in. Docserver window will be then
+minimized to tray, you can open it by clicking the icon.
+
+With this setup, docserver is fully working from the start of the
+system, even if nobody is logged in. The docserver window is
+accessible to every logged user. If you use trayer, user has to open
+the docserver window from tray to make it visible for next user.
+Trayer will not survive logout and if the docserver window is minimized
+in tray, it will be lost. However, docserver itself will continue running
+and its output will be in log.
+
+Other docserver configuration:
+
+If docserver crashes or is killed, it can be restarted using
+	net start autoexnt
+sometimes you have to do net stop autoexnt befoe that, after that it
+survives logout, etc.
+
+You can also setup the thing in such a way that the interactive user
+won't see the docserver window, messages go to log in that case. If
+the docserver runs under another user that the interactive one, after
+killing it there may be dangling winword.exe process and interactive
+user cannot kill it. You can destroy it by calling Resource Kit kill
+from autoexnt.bat by running net start autoexnt.
+
+After installation, it may be nice to setup the docserver.pl window
+(Alt+Space) in Properties/Layout/Screen buffer size to something like
+120*1000 and do Save for future.
+
+You can apply the following docserver.reg which does the above
+described settings:
+
+REGEDIT4
+
+[HKEY_USERS\.default\Software\Microsoft\Office\9.0\Word\Security]
+"Level"=dword:00000003
+"DontTrustInstalledFiles"=dword:00000001
+
+[HKEY_USERS\.default\Software\Microsoft\Office\9.0\Excel\Security]
+"Level"=dword:00000003
+"DontTrustInstalledFiles"=dword:00000001
+
+[HKEY_USERS\.DEFAULT\Console\docserver.pl]
+"ScreenBufferSize"=dword:03e80078
+"FontSize"=dword:000c0008
+"FontFamily"=dword:00000030
+"FontWeight"=dword:00000190
+"HistoryNoDup"=dword:00000000
+
+Author: Jan Pazdziora, adelton@fi.muni.cz.
+	The Windows/Word/Excel specific documentation is
+	a translation of description by Pavel Smerk.
+
