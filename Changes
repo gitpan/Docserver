@@ -1,0 +1,30 @@
+
+0.85
+	Docserver.pm: changes names of the txt formats: txt is now
+	wdFormatText, txt1 stays wdFormatTextLineBreaks and the
+	original txt (value 9) is not supported anymore.
+
+0.84 Tue Dec 15 10:42:47 MET 1998
+	docclient.pl: fixed problem with ends of lines.
+
+0.83 Tue Dec 15 09:47:10 MET 1998
+	docclient.pl: fixed handling long lines what cannot be compressed.
+
+0.82 Mon Dec 14 1998
+	docclient.pl: fixed compressing long lines.
+
+0.81 Mon Dec 14 1998
+	Merge of 0.55 and 0.80.
+
+0.80
+	docclient.pl: cleaning and transofrmation code -- Michal Brandejs.
+
+0.55
+	Docserver.pm: added xls and output html code (untested)
+	-- Pavel Smerk.
+
+0.50
+	First unofficial release, includes doc(server|client).pl,
+	Doc(server|client).pm. Handles doc to txt, no cleanup of
+	the output data.
+

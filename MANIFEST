@@ -1,0 +1,14 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+bin/docclient.pl
+bin/docserver.pl
+lib/Docclient.pm
+lib/Docclient/Config.pm
+lib/Docserver.pm
+t/docclient.t
+t/docserver.t
+t/test.doc
+t/test.xls
+testfi.pl
